@@ -1,0 +1,56 @@
+190611 
+After this simple example, I understand how the G.fst works.
+
+* How to run
+  Just cd to this dir and then issue './run.sh'
+
+* Files
+  - lm.arpa: the arpa format lm model
+  - words.text: the words to number file
+  - G.fst: the generated fst file from lm.arpa
+  - G.ps: the picture for G.fst
+
+* anaylisis
+  Note:
+  - The log prob in lm file in 10-based log
+  - The lines that convert the log prob from 10-based log to natural based log are commented. Then weight in the generated fst will be the same as in the arpa lm file. This makes it easier to see the relationship between the two.
+
+    /Users/astropeak/github/kaldi/src/lm/arpa-file-parser.cc
+    // Convert to natural log.
+    // ngram.logprob *= M_LN10;
+    // ngram.backoff *= M_LN10;
+  - The backoff prob are removed to make it simple to anayze the relationship between the lm and fst
+
+
+  From the lm.arpa file, there are 3 words in total: sil, ax, s.
+  For ax, 没有以它为开始的2gram和3gram，因此在FST中只有一个arc与其对应，并且weight为1.5682
+
+  对于s，有一个2gram以它为开始，所以节点3会出现两条路径，路径3->0表示了s。
+  路径 0->3->5->0 表示了 s ax这个句子。这个句子的概率为 P(s,ax) = P(s)P(ax|s). 其中P(s)即为s的1gram的值 2.5682， P(ax|s)即为 s ax的2gram的值 2.2222。 所以总的概率就是整个路径上所有权值的和（由于取了log，乘法变为加法）。
+
+  到结点5时，由于此时前置词为 s ax, 根据语法文件，此时只有两种可能：句子结束或者形成三元组 s ax sil，因为为有以ax开头的2gram。
+  5->0 对应第一种情况
+  5->2 对应第二种情况。并且 变个arc的weight为 s ax sil这个3gram对应的概率 1.1111。
+
+  对于结点2, 前置句子为 s ax sil。由于并不存在4gram，因此会先检查 ax sil X 这样的三元组是否存在。在本例中，不存在。则再会检查以sil为开始的2gram是否存在，有两个 sil ax和sil s。因此结点2的指向有三个：结束，创建一个ax的arc，创建一个s的arc。
+  2->0 对应结束
+  2->4 对应 sil ax。 其中arc的weight为 1.8335，即2gram sil ax的概率。
+  2->3 对应 sil s。  其中arc的weight为 2.8335，即2gram sil s的概率。
+
+
+
+  总的思考：
+  结点 3 其实是对 2gram s ax建模。因为进入的arc的label都为s， 出去的arc的label为ax。 不管进入的s从何处来，出去的arc的weight总为2.222,即lm.arpa中的 2gram s ax的概率。
+  同理
+  结点2 对 sil ax 和sil s建模，
+  结点5 对 s ax sil,
+  4    对 sil ax s
+
+  0 for ax
+  2 for sil
+  3 for s
+
+  多个结点复用，可使图小一些。在日志中有这么一句：
+  LOG (arpa2fst[5.4.218~2-e6fe]:RemoveRedundantStates():arpa-lm-compiler.cc:360) Reduced num-states from 10 to 6
+  
+
