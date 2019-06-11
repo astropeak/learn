@@ -1,5 +1,6 @@
-190611 
-After this simple example, I understand how the G.fst works.
+In this example, how a language model is maped to the G.FST, which is used to compose the HCLG graph used in speech recognition for decoding, is analysed.
+
+190611 After this simple example, I understand how the G.fst works.
 
 * How to run
   Just cd to this dir and then issue './run.sh'
